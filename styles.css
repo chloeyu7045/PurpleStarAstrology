@@ -1,0 +1,284 @@
+:root {
+  --bg: #faf8f5;
+  --panel: #ffffff;
+  --ink: #23201d;
+  --muted: #7c736b;
+  --line: #e5ded4;
+  --accent: #8b3a3a;
+  --accent-soft: #f3e7e7;
+  --lu: #2f7a4f;
+  --quan: #1f5f9e;
+  --ke: #7a5c1f;
+  --ji: #b03030;
+  --radius: 10px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC",
+    "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  line-height: 1.7;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius);
+  transition: background 0.15s, border-color 0.15s;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.primary:hover:not(:disabled) { background: #732f2f; }
+
+input, select {
+  font: inherit;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.app { max-width: 1180px; margin: 0 auto; padding: 1.25rem; }
+
+.topbar { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.topbar h1 { font-size: 1.25rem; margin: 0; letter-spacing: 0.04em; }
+.spacer { flex: 1; }
+
+.layout { display: grid; grid-template-columns: 230px 1fr; gap: 1.25rem; align-items: start; }
+/* grid 子項預設 min-width:auto，會被內部橫向捲動的內容撐爆版面 —— 必須歸零 */
+.layout > * { min-width: 0; }
+@media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.people-wrap { display: flex; align-items: center; gap: 0.25rem; min-width: 0; }
+.people-list { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; min-width: 0; }
+
+/* 左右箭頭：只有列表真的能橫向捲動時才出現（窄螢幕） */
+.nudge {
+  display: none;
+  flex: 0 0 auto;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  line-height: 1;
+  font-size: 1.2rem;
+  border-radius: 50%;
+  color: var(--accent);
+  background: var(--panel);
+}
+.nudge:disabled { opacity: 0.25; }
+
+.person-btn { text-align: left; border: 1px solid transparent; background: transparent; padding: 0.45rem 0.6rem; }
+.person-btn.active { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
+.person-btn small { color: var(--muted); font-weight: 400; }
+
+.tabs {
+  display: flex; gap: 0.4rem; flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1rem; padding-bottom: 0.6rem;
+}
+.tabs button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.5rem 1rem;
+  margin-bottom: 1rem;
+}
+.meta-grid div { font-size: 0.9rem; }
+.meta-grid span { color: var(--muted); margin-right: 0.4rem; }
+
+table.palaces { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+table.palaces th, table.palaces td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.5rem 0.4rem; text-align: left; vertical-align: top;
+}
+table.palaces th { color: var(--muted); font-weight: 500; white-space: nowrap; }
+table.palaces tr.is-ming { background: var(--accent-soft); }
+.tag { font-size: 0.72rem; padding: 0 0.3rem; border-radius: 4px; margin-left: 0.25rem; }
+.tag.body { background: #e8eef5; color: var(--quan); }
+.m-祿 { color: var(--lu); font-weight: 600; }
+.m-權 { color: var(--quan); font-weight: 600; }
+.m-科 { color: var(--ke); font-weight: 600; }
+.m-忌 { color: var(--ji); font-weight: 600; }
+
+.report { min-height: 120px; }
+.report h2, .report h3, .report h4 { margin: 1.4rem 0 0.5rem; font-size: 1.02rem; color: var(--accent); }
+.report h2:first-child, .report h3:first-child { margin-top: 0; }
+.report p { margin: 0.6rem 0; }
+.report ul { margin: 0.5rem 0; padding-left: 1.2rem; }
+.report li { margin: 0.3rem 0; }
+
+.toolbar { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+
+.decades { gap: 0.35rem; margin-top: -0.4rem; }
+.chip { font-size: 0.78rem; padding: 0.2rem 0.55rem; border-radius: 999px; }
+.chip:hover { background: var(--accent-soft); }
+
+.steps { display: flex; flex-direction: column; gap: 0.5rem; }
+.prompt-box, .paste-box {
+  width: 100%;
+  font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbf9f7;
+  color: var(--ink);
+  resize: vertical;
+}
+.prompt-box { height: 110px; color: var(--muted); }
+.paste-box { height: 160px; background: #fff; font-family: inherit; font-size: 0.9rem; }
+.hint { color: var(--muted); font-size: 0.85rem; }
+.error {
+  background: #fdeaea; border: 1px solid #f0c2c2; color: #8b2222;
+  padding: 0.7rem 0.9rem; border-radius: 8px; margin-bottom: 0.9rem;
+}
+.cursor::after { content: '▍'; color: var(--accent); animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(30, 25, 20, 0.45);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem; z-index: 50;
+}
+.modal {
+  background: var(--panel); border-radius: 12px; padding: 1.25rem;
+  width: min(520px, 100%); max-height: 90vh; overflow: auto;
+}
+.modal h2 { margin-top: 0; font-size: 1.1rem; }
+.field { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.8rem; }
+.field label { font-size: 0.85rem; color: var(--muted); }
+.field input, .field select { width: 100%; }
+.row { display: flex; gap: 0.6rem; }
+.row > * { flex: 1; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem; flex-wrap: wrap; }
+
+/* ============================================================
+   RWD
+   平板：側欄變窄。手機：人名列表變成橫向膠囊、命盤表格變卡片。
+   ============================================================ */
+
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: 190px 1fr; gap: 0.9rem; }
+  .app { padding: 1rem; }
+}
+
+@media (max-width: 800px) {
+  .app { padding: 0.75rem; }
+
+  .topbar { gap: 0.5rem; margin-bottom: 0.8rem; }
+  .topbar h1 { font-size: 1.05rem; flex: 1 1 100%; }
+  .topbar .spacer { display: none; }
+
+  .layout { grid-template-columns: 1fr; gap: 0.75rem; }
+
+  /* 人名列表：直式清單 → 橫向捲動的膠囊，才不用滑過 11 個人 */
+  aside.card {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 0.5rem;
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+  .people-list {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 0.35rem;
+    padding-bottom: 0.15rem;
+    scrollbar-width: none;
+  }
+  .people-list::-webkit-scrollbar { display: none; }
+  .nudge { display: block; }
+  .person-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.9rem;
+  }
+  .person-btn br, .person-btn small { display: none; }
+
+  /* 分頁改成橫向捲動，不要換行擠成兩三排 */
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 0.3rem;
+    padding-bottom: 0.5rem;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs button { flex: 0 0 auto; font-size: 0.88rem; padding: 0.35rem 0.7rem; }
+  .tabs .spacer { display: none; }
+
+  .meta-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.35rem 0.8rem; }
+  .meta-grid div { font-size: 0.85rem; }
+
+  .toolbar { gap: 0.4rem; }
+  .toolbar select { flex: 1 1 auto; min-width: 0; }
+  .report h2, .report h3, .report h4 { font-size: 0.98rem; }
+  .modal { padding: 1rem; border-radius: 12px 12px 0 0; align-self: flex-end; }
+  .modal-backdrop { padding: 0; align-items: flex-end; }
+  .modal-actions button { flex: 1 1 auto; }
+}
+
+/* 命盤表格：窄螢幕下改成一宮一張卡，避免星曜被擠到斷行 */
+@media (max-width: 640px) {
+  table.palaces thead { display: none; }
+  table.palaces,
+  table.palaces tbody,
+  table.palaces tr,
+  table.palaces td { display: block; width: 100%; }
+
+  table.palaces tr {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.5rem 0.7rem;
+    margin-bottom: 0.5rem;
+  }
+  table.palaces tr.is-ming { border-color: var(--accent); }
+
+  table.palaces td {
+    border: none;
+    padding: 0.12rem 0;
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+    font-size: 0.87rem;
+  }
+  table.palaces td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    flex: 0 0 2.6rem;
+    font-size: 0.78rem;
+  }
+  table.palaces td.cell-name {
+    font-weight: 600;
+    font-size: 0.98rem;
+    color: var(--accent);
+    margin-bottom: 0.2rem;
+  }
+  table.palaces td.cell-name::before { content: none; }
+}
+
+@media (max-width: 420px) {
+  .chip { font-size: 0.74rem; padding: 0.18rem 0.45rem; }
+  .prompt-box { height: 90px; }
+}
