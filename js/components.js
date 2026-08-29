@@ -186,17 +186,19 @@ export const ChartTable = defineComponent({
   setup(props) {
     const chart = computed(() => buildChart(props.person));
     const starText = (s) => s.name + (s.brightness ? `(${s.brightness})` : '');
-    return { chart, starText };
+    return { chart, starText, store: S.store };
   },
   template: `
     <div>
       <div class="meta-grid">
-        <div><span>陽曆</span>{{ chart.solarDate }}</div>
-        <div><span>農曆</span>{{ chart.lunarDate }}</div>
-        <div><span>干支</span>{{ chart.chineseDate }}</div>
-        <div><span>時辰</span>{{ chart.time }} {{ chart.timeRange }}</div>
-        <div><span>生肖</span>{{ chart.zodiac }}</div>
-        <div><span>星座</span>{{ chart.sign }}</div>
+        <template v-if="store.showBirth">
+          <div><span>陽曆</span>{{ chart.solarDate }}</div>
+          <div><span>農曆</span>{{ chart.lunarDate }}</div>
+          <div><span>干支</span>{{ chart.chineseDate }}</div>
+          <div><span>時辰</span>{{ chart.time }} {{ chart.timeRange }}</div>
+          <div><span>生肖</span>{{ chart.zodiac }}</div>
+          <div><span>星座</span>{{ chart.sign }}</div>
+        </template>
         <div><span>命主</span>{{ chart.soul }}</div>
         <div><span>身主</span>{{ chart.body }}</div>
         <div><span>五行局</span>{{ chart.fiveElementsClass }}</div>

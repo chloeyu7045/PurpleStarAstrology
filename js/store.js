@@ -5,6 +5,7 @@ import { getPrewritten } from './readings/index.js';
 const PEOPLE_STORAGE = 'ziwei:people';
 const CACHE_STORAGE = 'ziwei:reports';
 const REMOVED_STORAGE = 'ziwei:removedPresets';
+const SHOWBIRTH_STORAGE = 'ziwei:showBirth';
 
 function load(key, fallback) {
   try {
@@ -38,7 +39,14 @@ export const store = reactive({
   people: mergePeople(),
   reports: load(CACHE_STORAGE, {}),
   selectedId: '',
+  // 隱私：預設不顯示出生年月日等個資，命盤本身照常顯示
+  showBirth: load(SHOWBIRTH_STORAGE, false) === true,
 });
+
+export function setShowBirth(v) {
+  store.showBirth = !!v;
+  localStorage.setItem(SHOWBIRTH_STORAGE, JSON.stringify(store.showBirth));
+}
 
 store.selectedId = store.people[0] ? store.people[0].id : '';
 

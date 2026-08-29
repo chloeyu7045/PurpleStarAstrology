@@ -16,10 +16,12 @@ const SettingsDialog = defineComponent({
   setup(_, { emit }) {
     const key = ref(getApiKey());
     const model = ref(getModel());
+    const showBirth = ref(S.store.showBirth);
 
     function save() {
       setApiKey(key.value);
       setModel(model.value);
+      S.setShowBirth(showBirth.value);
       emit('close');
     }
     function forget() {
@@ -31,16 +33,24 @@ const SettingsDialog = defineComponent({
       S.clearAllReports();
     }
     function resetPeople() {
-      if (!confirm('確定把人員名單還原成內建的 11 人嗎？你新增的人會消失。')) return;
+      if (!confirm('確定把人員名單還原成內建名單嗎？你新增的人會消失。')) return;
       S.resetToPresets();
       emit('close');
     }
-    return { key, model, MODEL_OPTIONS, save, forget, clearReports, resetPeople };
+    return { key, model, showBirth, MODEL_OPTIONS, save, forget, clearReports, resetPeople };
   },
   template: `
     <div class="modal-backdrop" @click.self="$emit('close')">
       <div class="modal">
         <h2>設定</h2>
+        <div class="field">
+          <label><input v-model="showBirth" type="checkbox" /> 顯示出生年月日</label>
+        </div>
+        <p class="hint">
+          預設隱藏。關閉時，人名底下的生日、以及命盤上的陽曆／農曆／干支／時辰／生肖／星座都不會顯示，
+          但命盤本身照常運作。
+        </p>
+        <hr style="border:none;border-top:1px solid var(--line);margin:1rem 0" />
         <p class="hint">
           預設是<strong>免費模式</strong>：App 幫你把提示詞組好，你複製到 Claude 網頁版問，再把回答貼回來存檔。
           不需要 API Key，也不用付費。
@@ -208,7 +218,7 @@ const App = defineComponent({
             <div class="people-list" ref="peopleEl" @scroll="syncNudge">
               <button v-for="p in store.people" :key="p.id" class="person-btn"
                 :class="{ active: p.id === store.selectedId }" @click="store.selectedId = p.id">
-                {{ p.name }}<br /><small>{{ p.birth_year }}/{{ p.birth_month }}/{{ p.birth_day }}</small>
+                {{ p.name }}<template v-if="store.showBirth"><br /><small>{{ p.birth_year }}/{{ p.birth_month }}/{{ p.birth_day }}</small></template>
               </button>
             </div>
             <button v-show="scrollable" class="nudge right" :disabled="!canRight"
