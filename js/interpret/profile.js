@@ -4,10 +4,11 @@
  * 這一層讓每個人（包含使用者自己新增的人）都有內容，
  * 不再只有我手寫的那 12 位。
  */
-import { coreReading } from './core.js';
+import { coreReading, warmWatch } from './core.js';
 import { detectPatterns, groupPatterns } from './patterns.js';
 import { PALACE, areaFor, shortFor, lifeStage } from './lexicon.js';
 import { rawAstrolabe, calcAge } from '../ziwei.js';
+import { heading, cushion, closing, proBlock } from './tone.js';
 
 const MUT_ORDER = ['祿', '權', '科', '忌'];
 const SHA = ['擎羊', '陀羅', '火星', '鈴星', '地空', '地劫'];
@@ -28,7 +29,7 @@ function natalMutagens(palaces) {
 }
 
 /** 個性剖析 */
-export function personalityReading(person) {
+export function personalityReading(person, tone = 'blunt') {
   const a = rawAstrolabe(person);
   const core = coreReading(a);
   const pats = groupPatterns(detectPatterns(a));
@@ -36,7 +37,7 @@ export function personalityReading(person) {
   const minor = age < 16;
   const out = [];
 
-  out.push('## 本性');
+  out.push(`## ${heading('本性', tone)}`);
   if (core) {
     out.push(`**${core.title}**`);
     out.push(core.text);
@@ -47,23 +48,25 @@ export function personalityReading(person) {
 
   const flavour = [...pats.great, ...pats.good];
   if (flavour.length) {
-    out.push('## 你身上比較特別的地方');
+    out.push(`## ${heading('特別', tone)}`);
     flavour.forEach((p) => out.push(`**${p.title}**\n\n${p.text}`));
   }
 
   if (core) {
-    out.push('## 天賦優勢');
+    out.push(`## ${heading('天賦', tone)}`);
     out.push(core.strength);
   }
 
   if (minor) {
     out.push('> 這位還未成年，上面講的是天生的傾向，還在成形中。父母看的重點是「怎麼順著這個天性帶」，而不是把它當定論。');
   }
+  const pro = proBlock(tone, a, detectPatterns(a));
+  if (pro) out.push(pro);
   return out.join('\n\n');
 }
 
 /** 優勢與時機 —— 給人看了有方向、心情好一點的那一份 */
-export function strengthsReading(person) {
+export function strengthsReading(person, tone = 'blunt') {
   const a = rawAstrolabe(person);
   const P = a.palaces;
   const core = coreReading(a);
@@ -75,7 +78,7 @@ export function strengthsReading(person) {
   const you = minor ? '他' : '你';
   const out = [];
 
-  out.push('## 你最大的本錢');
+  out.push(`## ${heading('本錢', tone)}`);
   if (core) out.push(core.strength);
   pats.great.forEach((p) => out.push(`**${p.title}**\n\n${p.text}\n\n👉 ${p.advice}`));
   pats.good.forEach((p) => out.push(`**${p.title}**\n\n${p.text}\n\n👉 ${p.advice}`));
@@ -86,7 +89,7 @@ export function strengthsReading(person) {
   // 三個吉化落宮 → 明確指出「往哪裡使力」
   const good = muts.filter((m) => ['祿', '權', '科'].includes(m.type));
   if (good.length) {
-    out.push('## 往哪裡使力最划算');
+    out.push(`## ${heading('使力', tone)}`);
     const label = { 祿: '最順、最容易有收穫', 權: '最能拿到主導權', 科: '最容易累積名聲和貴人' };
     // 同一宮位可能同時有兩個吉化，合併成一句才不會重複講
     const byPalace = new Map();
@@ -105,7 +108,7 @@ export function strengthsReading(person) {
   // 大限：哪幾個十年是機會窗口
   const windows = decadeWindows(a, person);
   if (windows.length) {
-    out.push('## 人生的機會窗口');
+    out.push(`## ${heading('窗口', tone)}`);
     out.push(`每十年${you}的重心會換一次。以下是比較值得把握的幾段：`);
     windows.forEach((w) => {
       out.push(`- **${w.range} 歲**（${w.years}）：重心在**${shortFor(w.palace, stage.key)}**。${w.note}`);
@@ -180,7 +183,7 @@ function decadeWindows(a, person) {
 }
 
 /** 盲點與課題 —— 每一條都要給「可以怎麼做」 */
-export function blindspotsReading(person) {
+export function blindspotsReading(person, tone = 'blunt') {
   const a = rawAstrolabe(person);
   const P = a.palaces;
   const core = coreReading(a);
@@ -191,15 +194,22 @@ export function blindspotsReading(person) {
   const minor = age < 16;
   const out = [];
 
+  const cu = cushion(tone);
+  if (cu) out.push(cu);
+
   if (minor) {
-    out.push('## 需要被好好引導的地方');
-    if (core) out.push(`${core.watch}\n\n👉 父母可以順著他的天性帶，而不是硬扭。`);
+    out.push(`## ${heading('引導', tone)}`);
+    const warmKid = tone === 'warm' ? warmWatch(a) : null;
+    if (warmKid) out.push(`${warmKid}\n\n👉 父母可以順著他的天性帶，而不是硬扭。`);
+    else if (core) out.push(`${core.watch}\n\n👉 父母可以順著他的天性帶，而不是硬扭。`);
     pats.caution.forEach((p) => out.push(`**${p.title}**\n\n${p.text}\n\n👉 ${p.advice}`));
   } else {
-    out.push('## 你的性格弱點');
-    if (core) out.push(core.watch);
+    out.push(`## ${heading('弱點', tone)}`);
+    const warm = tone === 'warm' ? warmWatch(a) : null;
+    if (warm) out.push(warm);
+    else if (core) out.push(core.watch);
     if (pats.caution.length) {
-      out.push('## 你要留意的幾件事');
+      out.push(`## ${heading('留意', tone)}`);
       pats.caution.forEach((p) => out.push(`**${p.title}**\n\n${p.text}\n\n👉 ${p.advice}`));
     }
   }
@@ -207,13 +217,15 @@ export function blindspotsReading(person) {
   const ji = muts.find((m) => m.type === '忌');
   if (ji) {
     const info = PALACE[ji.palace];
-    out.push('## 這輩子的功課');
+    out.push(`## ${heading('課題', tone)}`);
     out.push(`${minor ? '他' : '你'}最容易糾結、也最需要學會處理的，是**${areaFor(ji.palace, stage.key)}**。${info ? info.bad : ''}。這不會只出現一次，會一再回來。`);
     out.push(`👉 ${adviceForJi(ji.palace, minor)}`);
   }
 
   out.push('---');
-  out.push(`**最後一句：**上面講的是${minor ? '他' : '你'}比較弱的那幾塊，不是${minor ? '他' : '你'}的全部。記得也去看「優勢與時機」那一頁——那裡才是${minor ? '他' : '你'}真正的本錢。`);
+  out.push(closing(tone, minor));
+  const pro2 = proBlock(tone, a, detectPatterns(a));
+  if (pro2) out.push(pro2);
   return out.join('\n\n');
 }
 

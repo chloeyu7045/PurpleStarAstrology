@@ -1,6 +1,7 @@
 import { ref, computed, watch, onUnmounted, defineComponent } from './deps.js';
 import * as S from './store.js';
-import { buildChart, toTimeIndex, TIME_NAMES, maskChartMeta } from './ziwei.js';
+import { buildChart, toTimeIndex, TIME_NAMES, maskChartMeta, rawAstrolabe } from './ziwei.js';
+import { allPalaceInsights } from './interpret/palaces.js';
 import { buildPayload } from './payload.js';
 import { comparePrompt, systemFor } from './prompts.js';
 import { compareReading } from './interpret/compare.js';
@@ -190,7 +191,12 @@ export const ChartTable = defineComponent({
     // 生辰欄位：關閉顯示時遮掉但保留欄位，版面不會少一塊
     const meta = computed(() =>
       (S.store.showBirth ? chart.value : { ...chart.value, ...maskChartMeta(chart.value) }));
-    return { chart, meta, starText, store: S.store };
+    // 十二宮逐宮分析，跟著語氣走
+    const insights = computed(() => {
+      try { return allPalaceInsights(rawAstrolabe(props.person), S.store.tone); }
+      catch (e) { return []; }
+    });
+    return { chart, meta, starText, insights, store: S.store };
   },
   template: `
     <div>
@@ -230,6 +236,14 @@ export const ChartTable = defineComponent({
           </tr>
         </tbody>
       </table>
+      </div>
+
+      <div v-if="insights.length" class="insights">
+        <h3>十二宮逐宮分析</h3>
+        <div v-for="p in insights" :key="p.name" class="insight-row">
+          <div class="insight-name">{{ p.name }}<small>{{ p.area }}</small></div>
+          <div class="insight-text">{{ p.text }}</div>
+        </div>
       </div>
     </div>
   `,

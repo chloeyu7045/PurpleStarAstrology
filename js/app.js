@@ -11,6 +11,7 @@ import { ReportPanel, ChartTable, ComparePanel, PersonForm } from './components.
 import { yearlyReading, decades } from './interpret/yearly.js';
 import { personalityReading, strengthsReading, blindspotsReading } from './interpret/profile.js';
 import { maskSolar } from './ziwei.js';
+import { TONES } from './interpret/tone.js';
 
 const SettingsDialog = defineComponent({
   name: 'SettingsDialog',
@@ -106,11 +107,11 @@ const App = defineComponent({
     const payload = computed(() => (person.value ? buildPayload(person.value) : null));
     const system = computed(() => (payload.value ? systemFor(payload.value) : ''));
 
-    const personalityKey = computed(() => S.cacheKey('personality', S.store.selectedId));
-    const blindspotsKey = computed(() => S.cacheKey('blindspots', S.store.selectedId));
+    const personalityKey = computed(() => S.cacheKey('personality', S.store.selectedId, S.store.tone));
+    const blindspotsKey = computed(() => S.cacheKey('blindspots', S.store.selectedId, S.store.tone));
     const yearlyKey = computed(() =>
       S.cacheKey('yearly', S.store.selectedId,
-        `${year.value}${detailed.value ? ':full' : ''}${withMonthly.value ? ':m' : ''}`));
+        `${year.value}:${S.store.tone}${detailed.value ? ':full' : ''}${withMonthly.value ? ':m' : ''}`));
 
     const personalityText = computed(() => (payload.value ? personalityPrompt(payload.value) : ''));
     const blindspotsText = computed(() => (payload.value ? blindspotsPrompt(payload.value) : ''));
@@ -142,10 +143,10 @@ const App = defineComponent({
       }
     });
 
-    const strengthsKey = computed(() => S.cacheKey('strengths', S.store.selectedId));
+    const strengthsKey = computed(() => S.cacheKey('strengths', S.store.selectedId, S.store.tone));
     const safe = (fn) => {
       if (!person.value) return '';
-      try { return fn(person.value); } catch (e) { return `這一段算不出來（${e.message}）。`; }
+      try { return fn(person.value, S.store.tone); } catch (e) { return `這一段算不出來（${e.message}）。`; }
     };
     const personalityGenerated = computed(() => safe(personalityReading));
     const strengthsGenerated = computed(() => safe(strengthsReading));
@@ -209,7 +210,7 @@ const App = defineComponent({
       personalityKey, blindspotsKey, yearlyKey, strengthsKey,
       personalityGenerated, strengthsGenerated, blindspotsGenerated,
       personalityText, blindspotsText, yearlyText,
-      yearOptions, decadeList, yearlyGenerated, thisYear, jumpToDecade,
+      yearOptions, decadeList, yearlyGenerated, thisYear, jumpToDecade, TONES, setTone: S.setTone,
       peopleEl, scrollable, canLeft, canRight, syncNudge, nudge, maskSolar,
       openAdd, openEdit,
     };
@@ -218,6 +219,10 @@ const App = defineComponent({
     <div class="app">
       <div class="topbar">
         <h1>紫微斗數 · 命盤解析</h1>
+        <div class="tone-switch" role="group" aria-label="解讀語氣">
+          <button v-for="t in TONES" :key="t.id" :class="{ active: store.tone === t.id }"
+            :title="t.hint" @click="setTone(t.id)">{{ t.label }}</button>
+        </div>
         <span class="spacer"></span>
         <button @click="openAdd">新增人</button>
         <button @click="showSettings = true">設定</button>

@@ -292,3 +292,27 @@ table.palaces tr.is-ming { background: var(--accent-soft); }
   font-size: 0.92rem;
 }
 .report hr { border: none; border-top: 1px solid var(--line); margin: 1.4rem 0; }
+
+/* 頂欄的語氣切換 */
+.tone-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.tone-switch button {
+  border: none; border-radius: 0; padding: 0.3rem 0.8rem;
+  font-size: 0.85rem; background: transparent;
+}
+.tone-switch button + button { border-left: 1px solid var(--line); }
+.tone-switch button.active { background: var(--accent); color: #fff; }
+
+/* 十二宮逐宮分析 */
+.insights { margin-top: 1.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.insights h3 { font-size: 1rem; color: var(--accent); margin: 0 0 0.6rem; }
+.insight-row {
+  display: grid; grid-template-columns: 5.5rem 1fr; gap: 0.7rem;
+  padding: 0.45rem 0; border-bottom: 1px solid var(--line); font-size: 0.88rem;
+}
+.insight-row:last-child { border-bottom: none; }
+.insight-name { font-weight: 600; }
+.insight-name small { display: block; color: var(--muted); font-weight: 400; font-size: 0.75rem; }
+@media (max-width: 640px) {
+  .insight-row { grid-template-columns: 1fr; gap: 0.15rem; }
+  .insight-name small { display: inline; margin-left: 0.4rem; }
+}

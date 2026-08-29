@@ -1,11 +1,13 @@
 import { reactive } from './deps.js';
 import { PRESET_PEOPLE } from './data.js';
 import { getPrewritten } from './readings/index.js';
+import { isTone } from './interpret/tone.js';
 
 const PEOPLE_STORAGE = 'ziwei:people';
 const CACHE_STORAGE = 'ziwei:reports';
 const REMOVED_STORAGE = 'ziwei:removedPresets';
 const SHOWBIRTH_STORAGE = 'ziwei:showBirth';
+const TONE_STORAGE = 'ziwei:tone';
 
 function load(key, fallback) {
   try {
@@ -41,7 +43,15 @@ export const store = reactive({
   selectedId: '',
   // 隱私：預設不顯示出生年月日等個資，命盤本身照常顯示
   showBirth: load(SHOWBIRTH_STORAGE, false) === true,
+  // 語氣：warm 溫暖 / blunt 犀利 / pro 專業。預設溫暖，因為線上是公開的。
+  tone: isTone(load(TONE_STORAGE, '')) ? load(TONE_STORAGE, '') : 'warm',
 });
+
+export function setTone(t) {
+  if (!isTone(t)) return;
+  store.tone = t;
+  localStorage.setItem(TONE_STORAGE, JSON.stringify(t));
+}
 
 export function setShowBirth(v) {
   store.showBirth = !!v;
@@ -104,7 +114,11 @@ export function resetToPresets() {
  */
 export function getReport(key) {
   if (store.reports[key]) return store.reports[key];
-  const pre = getPrewritten(key);
+  // 手寫的那幾篇是「犀利」寫死的，換語氣時改用產生器才不會前後不一致
+  if (store.tone !== 'blunt') return undefined;
+  // 快取 key 帶了語氣後綴（kind:person:tone），但手寫版是以 kind:person 收錄的
+  const base = key.split(':').slice(0, 2).join(':');
+  const pre = getPrewritten(base);
   return pre ? { text: pre, prewritten: true } : undefined;
 }
 
