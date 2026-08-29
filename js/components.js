@@ -239,8 +239,11 @@ export const ComparePanel = defineComponent({
   name: 'ComparePanel',
   components: { ReportPanel },
   setup() {
-    const leftId = ref(S.store.people[0] ? S.store.people[0].id : '');
-    const rightId = ref(S.store.people[1] ? S.store.people[1].id : '');
+    // 左邊預設帶入目前在看的人，右邊自動挑另一個，不用每次重選
+    const current = S.store.selectedId || (S.store.people[0] && S.store.people[0].id) || '';
+    const other = (S.store.people.find((p) => p.id !== current) || {}).id || '';
+    const leftId = ref(current);
+    const rightId = ref(other);
     const ready = computed(() => leftId.value && rightId.value && leftId.value !== rightId.value);
 
     const pair = computed(() => {

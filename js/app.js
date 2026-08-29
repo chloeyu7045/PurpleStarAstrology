@@ -9,6 +9,7 @@ import {
 } from './claude.js';
 import { ReportPanel, ChartTable, ComparePanel, PersonForm } from './components.js';
 import { yearlyReading, decades } from './interpret/yearly.js';
+import { personalityReading, strengthsReading, blindspotsReading } from './interpret/profile.js';
 import { maskSolar } from './ziwei.js';
 
 const SettingsDialog = defineComponent({
@@ -84,6 +85,7 @@ const SettingsDialog = defineComponent({
 const TABS = [
   { id: 'chart', label: '命盤總覽' },
   { id: 'personality', label: '個性剖析' },
+  { id: 'strengths', label: '優勢與時機' },
   { id: 'blindspots', label: '盲點與課題' },
   { id: 'yearly', label: '流年運勢' },
   { id: 'compare', label: '兩人比對' },
@@ -140,6 +142,15 @@ const App = defineComponent({
       }
     });
 
+    const strengthsKey = computed(() => S.cacheKey('strengths', S.store.selectedId));
+    const safe = (fn) => {
+      if (!person.value) return '';
+      try { return fn(person.value); } catch (e) { return `這一段算不出來（${e.message}）。`; }
+    };
+    const personalityGenerated = computed(() => safe(personalityReading));
+    const strengthsGenerated = computed(() => safe(strengthsReading));
+    const blindspotsGenerated = computed(() => safe(blindspotsReading));
+
     const thisYear = new Date().getFullYear();
     function jumpToDecade(d) {
       if (!person.value) return;
@@ -195,7 +206,8 @@ const App = defineComponent({
     return {
       store: S.store, TABS, tab, showSettings, showForm, editing,
       year, detailed, withMonthly, person, payload, system,
-      personalityKey, blindspotsKey, yearlyKey,
+      personalityKey, blindspotsKey, yearlyKey, strengthsKey,
+      personalityGenerated, strengthsGenerated, blindspotsGenerated,
       personalityText, blindspotsText, yearlyText,
       yearOptions, decadeList, yearlyGenerated, thisYear, jumpToDecade,
       peopleEl, scrollable, canLeft, canRight, syncNudge, nudge, maskSolar,
@@ -244,10 +256,16 @@ const App = defineComponent({
             <ChartTable v-if="tab === 'chart'" :person="person" />
 
             <ReportPanel v-else-if="tab === 'personality'" :key="personalityKey"
-              :cache-key="personalityKey" :system="system" :prompt="personalityText" />
+              :cache-key="personalityKey" :system="system" :prompt="personalityText"
+              :fallback="personalityGenerated" />
+
+            <ReportPanel v-else-if="tab === 'strengths'" :key="strengthsKey"
+              :cache-key="strengthsKey" :system="system" :prompt="personalityText"
+              :fallback="strengthsGenerated" />
 
             <ReportPanel v-else-if="tab === 'blindspots'" :key="blindspotsKey"
-              :cache-key="blindspotsKey" :system="system" :prompt="blindspotsText" />
+              :cache-key="blindspotsKey" :system="system" :prompt="blindspotsText"
+              :fallback="blindspotsGenerated" />
 
             <template v-else-if="tab === 'yearly'">
               <div class="toolbar">
