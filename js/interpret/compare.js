@@ -1,5 +1,7 @@
 import { rawAstrolabe, calcAge } from '../ziwei.js';
 import { PALACE, STAR, lifeStage, areaFor } from './lexicon.js';
+import { fliesInto, branchRelation } from './flying.js';
+import { getRelation, relationNote } from './relations.js';
 
 const MUT_ORDER = ['祿', '權', '科', '忌'];
 
@@ -50,6 +52,7 @@ function digest(person) {
 
   return {
     name: person.name,
+    branch: ming.earthlyBranch,
     age,
     stage,
     isMinor: age < 16,
@@ -67,17 +70,41 @@ function tagLine(d) {
   return d.tempers.map((t) => t.tag).join('＋');
 }
 
-/** 兩人比對：任意兩人都能組出來 */
-export function compareReading(personA, personB) {
+/** 兩人比對：任意兩人 × 任意關係別 */
+export function compareReading(personA, personB, relationId = 'friend') {
   const A = digest(personA);
   const B = digest(personB);
   const hasMinor = A.isMinor || B.isMinor;
+  // 有未成年的一方時，一律以親子的角度來談
+  const rel = getRelation(hasMinor ? 'parentchild' : relationId);
+  const astroA = rawAstrolabe(personA);
+  const astroB = rawAstrolabe(personB);
   const out = [];
+
+  out.push(`> 以下是用「**${rel.label}**」的角度來看這兩個人。${rel.intro}`);
 
   // ── 兩個人各是什麼樣的人 ──
   out.push('## 這兩個人各是什麼樣的人');
   out.push(`**${A.name}｜${tagLine(A)}**　${describe(A)}`);
   out.push(`**${B.name}｜${tagLine(B)}**　${describe(B)}`);
+
+  // ── 命宮地支的先天關係 ──
+  const br = branchRelation(A.branch, B.branch);
+  if (br) {
+    out.push('## 你們的先天頻率');
+    out.push(`**${br.title}**\n\n${br.text}`);
+  }
+
+  // ── 飛星：誰影響誰、影響在哪 ──
+  const aToB = fliesInto(astroA, astroB, A.name, B.name);
+  const bToA = fliesInto(astroB, astroA, B.name, A.name);
+  if (aToB.length || bToA.length) {
+    out.push('## 你們實際上是怎麼影響對方的');
+    out.push(flyBlock(A.name, B.name, aToB, rel));
+    out.push(flyBlock(B.name, A.name, bToA, rel));
+    const knot = summariseKnots(aToB, bToA, A.name, B.name, rel);
+    if (knot) out.push(knot);
+  }
 
   // ── 合不合 ──
   out.push('## 合不合，為什麼');
@@ -111,7 +138,7 @@ function describe(d) {
   const want = d.tempers.map((t) => t.want).join('、');
   const give = d.tempers.map((t) => t.give).join('、');
   const fr = d.tempers.map((t) => t.friction).join('、');
-  let s = `要的是${want}；能給的是${give}；卡住的時候會${fr}。`;
+  let s = `要的是${want}；能給的是${give}；卡住的時候會出現的狀況是——${fr}。`;
   if (d.ji) {
     s += `這輩子最容易糾結的是**${areaFor(d.ji.palace, d.stage.key)}**。`;
   }
@@ -227,4 +254,40 @@ function adviceFor(me, other) {
   };
   const line = f && base[f] ? base[f] : '多留一點空間給對方，也留一點給自己。';
   return `${line}另外記得——${other.name}最在乎的是**${otherWant}**，這是你最省力就能給的東西。`;
+}
+
+
+/** 把某一方的飛星影響排成一段 */
+function flyBlock(fromName, toName, flies, rel) {
+  if (!flies.length) return `**${fromName} → ${toName}**：這個方向的影響不明顯。`;
+  const order = { 祿: 0, 科: 1, 權: 2, 忌: 3 };
+  const sorted = [...flies].sort((a, b) => order[a.type] - order[b.type]);
+  // 關係提示每段只掛一次，優先掛在要留意的那條，否則掛第一條符合的
+  const noted = sorted.find((f) => f.type === '忌' && relationNote(rel.id, f))
+    || sorted.find((f) => relationNote(rel.id, f));
+  const lines = sorted.map((f) => {
+    const note = f === noted ? relationNote(rel.id, f) : '';
+    const mark = f.type === '忌' ? '⚠️ ' : (f.type === '祿' ? '✅ ' : '');
+    return `- ${mark}${f.text}${note ? ` ${note}` : ''}`;
+  });
+  return `**${fromName} 帶給 ${toName} 的影響**\n\n${lines.join('\n')}`;
+}
+
+/** 把兩邊的「卡點」收成一句結論 */
+function summariseKnots(aToB, bToA, nameA, nameB, rel) {
+  const ja = aToB.find((f) => f.type === '忌');
+  const jb = bToA.find((f) => f.type === '忌');
+  if (!ja && !jb) return '';
+  if (ja && jb && ja.palace === jb.palace) {
+    const area = PALACE[ja.palace] ? PALACE[ja.palace].short : ja.palace;
+    return `**你們的死結在同一個地方：${area}。**兩個人都在這一塊被對方牽動，所以一旦這裡出事，沒有人能當那個穩住的人。這是你們最需要事先講清楚、訂好規則的地方。`;
+  }
+  const short = (p) => (PALACE[p] ? PALACE[p].short : p);
+  const parts = [];
+  if (ja) parts.push(`${nameA}最容易讓${nameB}卡住的是**${short(ja.palace)}**`);
+  if (jb) parts.push(`${nameB}最容易讓${nameA}卡住的是**${short(jb.palace)}**`);
+  const tail = (ja && jb)
+    ? '兩邊卡的地方不一樣，代表你們有機會在對方最弱的地方補位——前提是願意講出來。'
+    : '這一塊是你們之間最需要留意的地方。';
+  return `${parts.join('；')}。${tail}`;
 }

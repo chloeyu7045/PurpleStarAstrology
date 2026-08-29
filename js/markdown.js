@@ -29,6 +29,18 @@ export function renderMarkdown(src) {
       out.push(`<h${Math.min(h[1].length + 1, 6)}>${inline(h[2])}</h${Math.min(h[1].length + 1, 6)}>`);
       continue;
     }
+    const bq = /^>\s?(.*)$/.exec(t);
+    if (bq) {
+      closeList();
+      out.push(`<blockquote>${inline(bq[1])}</blockquote>`);
+      continue;
+    }
+    const hr = /^(-{3,}|\*{3,})$/.exec(t);
+    if (hr) {
+      closeList();
+      out.push('<hr />');
+      continue;
+    }
     const li = /^[-*]\s+(.*)$/.exec(t) || /^\d+\.\s+(.*)$/.exec(t);
     if (li) {
       if (!inList) {

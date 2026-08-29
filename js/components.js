@@ -4,6 +4,7 @@ import { buildChart, toTimeIndex, TIME_NAMES, maskChartMeta } from './ziwei.js';
 import { buildPayload } from './payload.js';
 import { comparePrompt, systemFor } from './prompts.js';
 import { compareReading } from './interpret/compare.js';
+import { RELATIONS } from './interpret/relations.js';
 import { streamInterpretation, getApiKey } from './claude.js';
 import { renderMarkdown } from './markdown.js';
 
@@ -244,6 +245,7 @@ export const ComparePanel = defineComponent({
     const other = (S.store.people.find((p) => p.id !== current) || {}).id || '';
     const leftId = ref(current);
     const rightId = ref(other);
+    const relation = ref('friend');
     const ready = computed(() => leftId.value && rightId.value && leftId.value !== rightId.value);
 
     const pair = computed(() => {
@@ -255,15 +257,15 @@ export const ComparePanel = defineComponent({
       const pb = buildPayload(b);
       return {
         // 順序不影響結果，key 排序後才不會同一組算兩次
-        key: S.cacheKey('compare', [a.id, b.id].sort().join('+')),
+        key: S.cacheKey('compare', `${[a.id, b.id].sort().join('+')}:${relation.value}`),
         system: systemFor(pa.person.isMinor ? pa : pb),
         prompt: comparePrompt(pa, pb),
         // 任兩人都直接算得出來，不需要等任何人
-        generated: compareReading(a, b),
+        generated: compareReading(a, b, relation.value),
       };
     });
 
-    return { store: S.store, leftId, rightId, ready, pair };
+    return { store: S.store, leftId, rightId, relation, RELATIONS, ready, pair };
   },
   template: `
     <div>
@@ -274,6 +276,12 @@ export const ComparePanel = defineComponent({
         <span class="hint">和</span>
         <select v-model="rightId">
           <option v-for="p in store.people" :key="p.id" :value="p.id">{{ p.name }}</option>
+        </select>
+      </div>
+      <div class="toolbar">
+        <span class="hint">他們的關係是</span>
+        <select v-model="relation">
+          <option v-for="r in RELATIONS" :key="r.id" :value="r.id">{{ r.label }}</option>
         </select>
       </div>
       <p v-if="!ready" class="hint">請選兩個不同的人。</p>
