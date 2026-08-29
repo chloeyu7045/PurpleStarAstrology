@@ -70,3 +70,22 @@ export function calcAge(person, now = new Date()) {
   if (now < bd) age -= 1;
   return age;
 }
+
+/** 把生日遮起來但保留形狀，例如 1982 → 19**-*-* */
+export function maskSolar(year) {
+  return `${String(year).slice(0, 2)}**-*-*`;
+}
+
+/** 命盤上跟生辰有關的欄位，遮掉但保留欄位在，讓版面不會突然少一塊 */
+export function maskChartMeta(chart) {
+  const lunarPrefix = (chart.lunarDate || '').slice(0, 2); // 例如「一九」
+  return {
+    solarDate: maskSolar(chart.solarDate),
+    lunarDate: `${lunarPrefix}**年＊月＊`,
+    chineseDate: '＊＊＊＊',
+    time: '＊時',
+    timeRange: '',
+    zodiac: '＊',
+    sign: '＊＊',
+  };
+}

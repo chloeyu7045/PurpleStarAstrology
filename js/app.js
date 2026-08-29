@@ -9,6 +9,7 @@ import {
 } from './claude.js';
 import { ReportPanel, ChartTable, ComparePanel, PersonForm } from './components.js';
 import { yearlyReading, decades } from './interpret/yearly.js';
+import { maskSolar } from './ziwei.js';
 
 const SettingsDialog = defineComponent({
   name: 'SettingsDialog',
@@ -197,7 +198,7 @@ const App = defineComponent({
       personalityKey, blindspotsKey, yearlyKey,
       personalityText, blindspotsText, yearlyText,
       yearOptions, decadeList, yearlyGenerated, thisYear, jumpToDecade,
-      peopleEl, scrollable, canLeft, canRight, syncNudge, nudge,
+      peopleEl, scrollable, canLeft, canRight, syncNudge, nudge, maskSolar,
       openAdd, openEdit,
     };
   },
@@ -218,7 +219,7 @@ const App = defineComponent({
             <div class="people-list" ref="peopleEl" @scroll="syncNudge">
               <button v-for="p in store.people" :key="p.id" class="person-btn"
                 :class="{ active: p.id === store.selectedId }" @click="store.selectedId = p.id">
-                {{ p.name }}<template v-if="store.showBirth"><br /><small>{{ p.birth_year }}/{{ p.birth_month }}/{{ p.birth_day }}</small></template>
+                {{ p.name }}<br /><small>{{ store.showBirth ? p.birth_year + '/' + p.birth_month + '/' + p.birth_day : maskSolar(p.birth_year) }}</small>
               </button>
             </div>
             <button v-show="scrollable" class="nudge right" :disabled="!canRight"
