@@ -9,6 +9,7 @@ export const TONES = [
   { id: 'warm', label: '溫暖', hint: '用鼓勵的方式講，看完不會受傷' },
   { id: 'blunt', label: '犀利', hint: '講到痛點，不美化' },
   { id: 'pro', label: '專業', hint: '顯示星曜、宮位、四化等專有名詞' },
+  { id: 'peipei', label: '珮珮', hint: '像老師本人在跟你說話：用問的，不是用講的' },
 ];
 
 export const isTone = (id) => TONES.some((t) => t.id === id);

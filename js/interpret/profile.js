@@ -9,6 +9,7 @@ import { detectPatterns, groupPatterns } from './patterns.js';
 import { PALACE, areaFor, shortFor, lifeStage } from './lexicon.js';
 import { rawAstrolabe, calcAge } from '../ziwei.js';
 import { heading, cushion, closing, proBlock } from './tone.js';
+import { peipeiPersonality, peipeiStrengths, peipeiBlindspots } from './peipei.js';
 
 const MUT_ORDER = ['祿', '權', '科', '忌'];
 const SHA = ['擎羊', '陀羅', '火星', '鈴星', '地空', '地劫'];
@@ -30,6 +31,7 @@ function natalMutagens(palaces) {
 
 /** 個性剖析 */
 export function personalityReading(person, tone = 'blunt') {
+  if (tone === 'peipei') return peipeiPersonality(person);
   const a = rawAstrolabe(person);
   const core = coreReading(a);
   const pats = groupPatterns(detectPatterns(a));
@@ -67,6 +69,7 @@ export function personalityReading(person, tone = 'blunt') {
 
 /** 優勢與時機 —— 給人看了有方向、心情好一點的那一份 */
 export function strengthsReading(person, tone = 'blunt') {
+  if (tone === 'peipei') return peipeiStrengths(person);
   const a = rawAstrolabe(person);
   const P = a.palaces;
   const core = coreReading(a);
@@ -184,6 +187,7 @@ function decadeWindows(a, person) {
 
 /** 盲點與課題 —— 每一條都要給「可以怎麼做」 */
 export function blindspotsReading(person, tone = 'blunt') {
+  if (tone === 'peipei') return peipeiBlindspots(person);
   const a = rawAstrolabe(person);
   const P = a.palaces;
   const core = coreReading(a);
