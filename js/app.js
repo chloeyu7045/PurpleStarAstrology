@@ -297,6 +297,11 @@ const App = defineComponent({
         </main>
       </div>
 
+      <p class="foot-note">
+        本站會記錄匿名的整體使用狀況（例如有多少人來、停留多久），用來改善內容。
+        不會記錄你是誰，也不會追蹤個別訪客。命盤與解讀都只存在你自己的瀏覽器裡。
+      </p>
+
       <PersonForm v-if="showForm" :editing="editing" @close="showForm = false" />
       <SettingsDialog v-if="showSettings" @close="showSettings = false" />
     </div>

@@ -316,3 +316,11 @@ table.palaces tr.is-ming { background: var(--accent-soft); }
   .insight-row { grid-template-columns: 1fr; gap: 0.15rem; }
   .insight-name small { display: inline; margin-left: 0.4rem; }
 }
+
+.foot-note {
+  margin: 1.5rem 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  text-align: center;
+}
