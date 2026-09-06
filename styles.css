@@ -324,3 +324,15 @@ table.palaces tr.is-ming { background: var(--accent-soft); }
   line-height: 1.6;
   text-align: center;
 }
+
+/* 收到的資料 */
+.sub-card {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 0.7rem 0.9rem; margin-bottom: 0.6rem;
+}
+.sub-head { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.sub-body { font-size: 0.88rem; margin-top: 0.2rem; }
+.sub-note {
+  margin-top: 0.4rem; padding: 0.5rem 0.7rem; font-size: 0.88rem;
+  background: var(--accent-soft); border-radius: 8px;
+}

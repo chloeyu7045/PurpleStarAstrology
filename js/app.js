@@ -12,6 +12,8 @@ import { yearlyReading, decades } from './interpret/yearly.js';
 import { personalityReading, strengthsReading, blindspotsReading } from './interpret/profile.js';
 import { maskSolar } from './ziwei.js';
 import { TONES } from './interpret/tone.js';
+import { LoginDialog, AdminPanel } from './admin.js';
+import { auth, isLoggedIn, currentEmail, signOut } from './auth.js';
 
 const SettingsDialog = defineComponent({
   name: 'SettingsDialog',
@@ -83,7 +85,7 @@ const SettingsDialog = defineComponent({
   `,
 });
 
-const TABS = [
+const BASE_TABS = [
   { id: 'chart', label: '命盤總覽' },
   { id: 'personality', label: '個性剖析' },
   { id: 'strengths', label: '優勢與時機' },
@@ -93,9 +95,18 @@ const TABS = [
 ];
 
 const App = defineComponent({
-  components: { ReportPanel, ChartTable, ComparePanel, PersonForm, SettingsDialog },
+  components: { ReportPanel, ChartTable, ComparePanel, PersonForm, SettingsDialog, LoginDialog, AdminPanel },
   setup() {
     const tab = ref('chart');
+    const showLogin = ref(false);
+    // 「收到的資料」只在老師登入後出現
+    const TABS = computed(() => (isLoggedIn()
+      ? [...BASE_TABS, { id: 'admin', label: '收到的資料' }]
+      : BASE_TABS));
+    function doSignOut() {
+      signOut();
+      if (tab.value === 'admin') tab.value = 'chart';
+    }
     const showSettings = ref(false);
     const showForm = ref(false);
     const editing = ref(null);
@@ -206,6 +217,7 @@ const App = defineComponent({
 
     return {
       store: S.store, TABS, tab, showSettings, showForm, editing,
+      showLogin, auth, isLoggedIn, currentEmail, doSignOut,
       year, detailed, withMonthly, person, payload, system,
       personalityKey, blindspotsKey, yearlyKey, strengthsKey,
       personalityGenerated, strengthsGenerated, blindspotsGenerated,
@@ -226,6 +238,8 @@ const App = defineComponent({
         <span class="spacer"></span>
         <button @click="openAdd">新增人</button>
         <button @click="showSettings = true">設定</button>
+        <button v-if="!isLoggedIn()" @click="showLogin = true">老師登入</button>
+        <button v-else :title="currentEmail()" @click="doSignOut">登出</button>
       </div>
 
       <div class="layout">
@@ -251,7 +265,9 @@ const App = defineComponent({
             <button v-if="person && tab !== 'compare'" @click="openEdit">編輯</button>
           </div>
 
-          <ComparePanel v-if="tab === 'compare'" />
+          <AdminPanel v-if="tab === 'admin'" />
+
+          <ComparePanel v-else-if="tab === 'compare'" />
 
           <template v-else-if="person && payload">
             <p v-if="payload.person.isMinor" class="hint" style="margin-top:0">
@@ -304,6 +320,7 @@ const App = defineComponent({
 
       <PersonForm v-if="showForm" :editing="editing" @close="showForm = false" />
       <SettingsDialog v-if="showSettings" @close="showSettings = false" />
+      <LoginDialog v-if="showLogin" @close="showLogin = false" @done="tab = 'admin'" />
     </div>
   `,
 });
