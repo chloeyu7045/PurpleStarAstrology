@@ -6,6 +6,7 @@ import { buildPayload } from './payload.js';
 import { comparePrompt, systemFor } from './prompts.js';
 import { compareReading } from './interpret/compare.js';
 import { RELATIONS } from './interpret/relations.js';
+import { submitPerson } from './submit.js';
 import { streamInterpretation, getApiKey } from './claude.js';
 import { renderMarkdown } from './markdown.js';
 
@@ -330,6 +331,13 @@ export const PersonForm = defineComponent({
       is_leap_month: e ? e.is_leap_month : false,
     });
 
+    // 分享給老師：預設關閉，一定要使用者自己勾
+    const share = ref(false);
+    const contact = ref('');
+    const note = ref('');
+    const sending = ref(false);
+    const sendResult = ref('');
+
     const timeName = computed(() => TIME_NAMES[toTimeIndex(Number(form.value.birth_hour) || 0)]);
     const valid = computed(() => {
       const f = form.value;
@@ -339,15 +347,32 @@ export const PersonForm = defineComponent({
         f.birth_hour >= 0 && f.birth_hour <= 23;
     });
 
-    function save() {
-      if (!valid.value) return;
+    async function save() {
+      if (!valid.value || sending.value) return;
+
+      // 先存本機。送不送得出去都不該影響使用者自己的命盤
       if (props.editing) {
         S.updatePerson(props.editing.id, { ...form.value });
       } else {
         const p = S.addPerson({ ...form.value });
         S.store.selectedId = p.id;
       }
-      emit('close');
+
+      if (!share.value) {
+        emit('close');
+        return;
+      }
+
+      sending.value = true;
+      sendResult.value = '';
+      const r = await submitPerson(form.value, { contact: contact.value, note: note.value });
+      sending.value = false;
+      if (r.ok) {
+        emit('close');
+      } else {
+        // 命盤已經存好了，只是沒送出去，講清楚別讓人以為白填
+        sendResult.value = `${r.error}（你的命盤已經存好了，可以正常使用）`;
+      }
     }
 
     function remove() {
@@ -357,7 +382,7 @@ export const PersonForm = defineComponent({
       emit('close');
     }
 
-    return { form, timeName, valid, save, remove };
+    return { form, timeName, valid, save, remove, share, contact, note, sending, sendResult };
   },
   template: `
     <div class="modal-backdrop" @click.self="$emit('close')">
@@ -390,10 +415,38 @@ export const PersonForm = defineComponent({
         <div v-if="form.calendar_type === 'lunar'" class="field">
           <label><input v-model="form.is_leap_month" type="checkbox" /> 這個月是閏月</label>
         </div>
+        <hr style="border:none;border-top:1px solid var(--line);margin:1rem 0" />
+
+        <div class="field">
+          <label><input v-model="share" type="checkbox" /> 也把這筆資料分享給珮珮老師</label>
+        </div>
+        <p class="hint">
+          預設不分享。勾了才會送出，你的命盤本來就存在自己的瀏覽器裡，不勾也完全能用。
+        </p>
+
+        <template v-if="share">
+          <div class="field">
+            <label>聯絡方式（選填）</label>
+            <input v-model="contact" placeholder="想讓老師回覆你的話再填，例如 IG 或 email" />
+          </div>
+          <div class="field">
+            <label>想問老師什麼（選填）</label>
+            <textarea v-model="note" class="paste-box" style="height:80px"
+              placeholder="有特別想問的可以寫在這裡"></textarea>
+          </div>
+          <p class="hint">
+            送出後只有老師看得到，不會公開在網站上，也不會給其他人。沒填聯絡方式就不會有人聯絡你。
+          </p>
+        </template>
+
+        <div v-if="sendResult" class="error">{{ sendResult }}</div>
+
         <div class="modal-actions">
           <button v-if="editing" @click="remove">刪除</button>
           <button @click="$emit('close')">取消</button>
-          <button class="primary" :disabled="!valid" @click="save">儲存</button>
+          <button class="primary" :disabled="!valid || sending" @click="save">
+            {{ sending ? '送出中…' : (share ? '儲存並分享' : '儲存') }}
+          </button>
         </div>
       </div>
     </div>
