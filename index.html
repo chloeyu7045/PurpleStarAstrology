@@ -7,10 +7,24 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div id="app">
-      <div class="app"><p class="hint">載入中…（第一次開啟需要連網下載元件）</p></div>
-    </div>
+    <div id="app"></div>
     <script type="module" src="./js/app.js"></script>
+
+    <!-- 載入中不顯示任何文字。但萬一元件載不進來（沒網路、CDN 被擋），
+         不能讓使用者停在一片空白不知道發生什麼事，所以留一個延遲的退路。 -->
+    <script>
+      setTimeout(function () {
+        var app = document.getElementById('app');
+        if (app && !app.querySelector('.app')) {
+          app.innerHTML =
+            '<div style="max-width:32rem;margin:4rem auto;padding:0 1.5rem;' +
+            'font:14px/1.8 -apple-system,BlinkMacSystemFont,\'PingFang TC\',sans-serif;' +
+            'color:#7c736b;text-align:center">' +
+            '<p style="color:#8b2222">載入失敗</p>' +
+            '<p>請確認網路連線後重新整理。第一次開啟需要連網。</p></div>';
+        }
+      }, 8000);
+    </script>
 
     <!-- Cloudflare Web Analytics：只記匿名的整體流量，不追蹤個別訪客 -->
     <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js"
