@@ -1,5 +1,5 @@
 import { rawAstrolabe, calcAge } from '../ziwei.js';
-import { PALACE, MUTAGEN, STAR, lifeStage, areaFor, shortFor } from './lexicon.js';
+import { PALACE, MUTAGEN, STAR, LU_COSTS, lifeStage, areaFor, shortFor } from './lexicon.js';
 
 const MUT_ORDER = ['祿', '權', '科', '忌'];
 
@@ -139,7 +139,10 @@ export function yearlyReading(person, year, tone = 'blunt') {
   }
   if (lu) {
     const info = PALACE[lu.palace];
-    out.push(`**最順的是${areaFor(lu.palace, stage.key)}。**${info && info.events ? `留意這些機會：${info.events}。` : ''}`);
+    const cost = LU_COSTS[lu.palace];
+    out.push(`**今年被啟動最明顯的是${areaFor(lu.palace, stage.key)}。**這一塊事情會變多、資源會往這裡流。`
+      + `${info && info.events ? `常見的形式：${info.events}。` : ''}`
+      + `${cost ? `\n\n⚠️ ${cost}——所以「變熱鬧」不等於「變順」，要看是進來還是出去。` : ''}`);
   }
   if (quan) out.push(`**${areaFor(quan.palace, stage.key)}**今年${you}說話會更有份量，能做的決定變多，責任也跟著變大。`);
   if (ke) out.push(`**${areaFor(ke.palace, stage.key)}**容易遇到願意幫${you}的人，出了事也有人接。`);
@@ -150,7 +153,7 @@ export function yearlyReading(person, year, tone = 'blunt') {
   const bad = placements.filter((p) => p.kind === 'bad');
 
   if (good.length || love.length) {
-    out.push('## 今年的機會會從哪裡冒出來');
+    out.push('## 今年哪些地方會變熱鬧');
     // 同一種好處（例如流魁與流鉞都是貴人）要合併，否則同一句會重複出現
     const byWhat = new Map();
     [...good, ...love].forEach((p) => {
@@ -205,28 +208,60 @@ export function yearlyReading(person, year, tone = 'blunt') {
   return out.join('\n\n');
 }
 
-/** 十二個月：每月的重心與該月最卡的地方 */
+/**
+ * 逐月。
+ *
+ * 兩個重點：
+ * 1. 流月是「農曆月」。一個國曆月可能橫跨兩個農曆月，之前只取每月 15 號
+ *    一個切片，等於漏掉半個月的盤。改成掃過整年、依農曆月去重。
+ * 2. 月層級的變數太少，不適合斷言好壞。只說「這一塊被啟動」和「這一塊要
+ *    留神」，不再寫「某某順」——那是之前把化祿當成好事造成的誤導。
+ */
 function monthlyLines(a, year, stage, isChild, yearJiPalace) {
+  const seen = new Set();
   const lines = [];
-  for (let m = 1; m <= 12; m++) {
-    try {
-      const h = a.horoscope(`${year}-${String(m).padStart(2, '0')}-15`);
-      const idx = h.monthly.palaceNames.indexOf('命宮');
-      const focus = a.palaces[idx];
-      const mut = mapMutagens(a.palaces, h.monthly.mutagen);
-      const mLu = mut.find((x) => x.type === '祿');
-      const mJi = mut.find((x) => x.type === '忌');
-      if (!focus) continue;
 
-      const parts = [`**${m} 月**　重心在${shortFor(focus.name, stage.key)}`];
-      if (mLu) parts.push(`${shortFor(mLu.palace, stage.key)}順`);
-      if (mJi) parts.push(`${shortFor(mJi.palace, stage.key)}要當心`);
-      // 這個月卡的地方剛好是全年最卡的地方 → 雙重疊加，特別標出來
-      const clash = mJi && yearJiPalace && mJi.palace === yearJiPalace;
-      lines.push(`- ${parts.join('　·　')}${clash ? '　⚠️ 跟全年最卡的地方撞在一起，這個月特別小心' : ''}`);
-    } catch (e) {
-      /* 該月算不出來就跳過，不編造 */
+  // 每 5 天取一個點，確保每個農曆月至少被抓到一次
+  for (let d = new Date(`${year}-01-03T00:00:00`); d.getFullYear() <= year; d.setDate(d.getDate() + 5)) {
+    if (d.getFullYear() !== year) break;
+    const iso = `${year}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    let h;
+    try { h = a.horoscope(iso); } catch (e) { continue; }
+
+    // 用農曆月當唯一鍵，同一個農曆月只講一次
+    const lunar = h.lunarDate || '';
+    const mMatch = lunar.match(/年(.+?)[初廿十一二三四五六七八九]/);
+    const lunarMonth = mMatch ? mMatch[1] : lunar.slice(0, 8);
+    if (!lunarMonth || seen.has(lunarMonth)) continue;
+    seen.add(lunarMonth);
+
+    const idx = h.monthly.palaceNames.indexOf('命宮');
+    const focus = a.palaces[idx];
+    if (!focus) continue;
+    const mut = mapMutagens(a.palaces, h.monthly.mutagen);
+    const mLu = mut.find((x) => x.type === '祿');
+    const mJi = mut.find((x) => x.type === '忌');
+
+    // 流月煞星落在本命哪一宮
+    const sha = [];
+    ((h.monthly && h.monthly.stars) || []).forEach((cell, i) => {
+      (cell || []).forEach((st) => {
+        if (['月羊', '月陀', '月鈴', '月火'].includes(st.name) && a.palaces[i]) {
+          sha.push(a.palaces[i].name);
+        }
+      });
+    });
+
+    const parts = [];
+    if (mLu) parts.push(`**${shortFor(mLu.palace, stage.key)}**被啟動（事情會變多）`);
+    if (mJi) parts.push(`**${shortFor(mJi.palace, stage.key)}**要留神`);
+    const shaHit = [...new Set(sha)].filter((p) => p !== (mJi && mJi.palace)).slice(0, 2);
+    if (shaHit.length) {
+      parts.push(`${shaHit.map((p) => shortFor(p, stage.key)).join('、')}容易有波折`);
     }
+
+    const clash = mJi && yearJiPalace && mJi.palace === yearJiPalace;
+    lines.push(`- **${lunarMonth}**（約${iso.slice(5).replace('-', '/')}起）　重心在${shortFor(focus.name, stage.key)}　·　${parts.join('　·　')}${clash ? '　⚠️ 撞上全年最卡的地方，這個月特別小心' : ''}`);
   }
   return lines;
 }
