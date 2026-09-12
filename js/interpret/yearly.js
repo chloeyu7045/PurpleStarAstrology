@@ -188,7 +188,7 @@ export function yearlyReading(person, year, tone = 'blunt') {
   if (months.length) {
     out.push('## 一年十二個月怎麼走');
     months.forEach((m) => out.push(m));
-    out.push('> 越細的推算參考性越低。月份只當提醒，不要當預言。');
+    out.push('> ⚠️ 標記的月份是「兩個訊號疊在一起」，參考性較高。沒有標記的月份代表沒有明顯訊號，不是保證平安。越細的推算參考性越低，月份只當提醒。');
   }
 
   // ── 這十年 ──
@@ -218,7 +218,20 @@ export function yearlyReading(person, year, tone = 'blunt') {
  *    留神」，不再寫「某某順」——那是之前把化祿當成好事造成的誤導。
  */
 function monthlyLines(a, year, stage, isChild, yearJiPalace) {
+  // 本命本來就弱的地方：帶煞的宮位、以及生年化忌所在的宮位
+  const NATAL_SHA = ['擎羊', '陀羅', '火星', '鈴星', '地空', '地劫'];
+  const natalShaPalaces = new Set();
+  let natalJiPalace = null;
+  a.palaces.forEach((p) => {
+    const names = [...p.minorStars, ...p.adjectiveStars].map((x) => x.name);
+    if (names.filter((nm) => NATAL_SHA.includes(nm)).length >= 2) natalShaPalaces.add(p.name);
+    [...p.majorStars, ...p.minorStars].forEach((st) => {
+      if (st.mutagen === '忌') natalJiPalace = p.name;
+    });
+  });
+
   const seen = new Set();
+  const warnedPalaces = new Set();
   const lines = [];
 
   // 每 5 天取一個點，確保每個農曆月至少被抓到一次
@@ -252,16 +265,46 @@ function monthlyLines(a, year, stage, isChild, yearJiPalace) {
       });
     });
 
-    const parts = [];
-    if (mLu) parts.push(`**${shortFor(mLu.palace, stage.key)}**被啟動（事情會變多）`);
-    if (mJi) parts.push(`**${shortFor(mJi.palace, stage.key)}**要留神`);
-    const shaHit = [...new Set(sha)].filter((p) => p !== (mJi && mJi.palace)).slice(0, 2);
-    if (shaHit.length) {
-      parts.push(`${shaHit.map((p) => shortFor(p, stage.key)).join('、')}容易有波折`);
+    // 講少、講重。
+    // 列四件事必然有幾件不中，那就是「一半一半」的來源。
+    // 只保留「重心」+「訊號真的疊起來的那一個警示」，單一弱訊號寧可不講。
+    const shaSet = new Set(sha);
+    const KEY = ['命宮', '財帛', '官祿', '疾厄'];
+
+    // ⚠️ 月祿、月羊、月陀 是綁在一起移動的（月祿=月陀+1、月羊=月陀+2，
+    //    即古法「祿前羊後陀」）。它們只帶一個資訊，不能當三個獨立訊號用，
+    //    而且偏移常常連續數月相同 —— 直接拿來警示會變成連續四個月講同一句話。
+    //    所以流月煞星只在「疊到本命本來就弱的地方」時才算訊號。
+    let warn = null;
+    const shaOnWeakSpot = [...shaSet].find(
+      (pn) => natalShaPalaces.has(pn) || pn === natalJiPalace,
+    );
+    if (mJi && yearJiPalace && mJi.palace === yearJiPalace) {
+      warn = { palace: mJi.palace, text: `**${shortFor(mJi.palace, stage.key)}**——這個月的難處撞上全年最卡的地方，是全年最該小心的一段`, strong: true };
+    } else if (mJi && mJi.palace === natalJiPalace) {
+      warn = { palace: mJi.palace, text: `**${shortFor(mJi.palace, stage.key)}**——這個月的難處剛好踩在你本來就最糾結的那一塊`, strong: true };
+    } else if (shaOnWeakSpot) {
+      warn = { palace: shaOnWeakSpot, text: `**${shortFor(shaOnWeakSpot, stage.key)}**——這個月的阻力落在你本來就比較弱的地方`, strong: true };
+    } else if (mJi && KEY.includes(mJi.palace)) {
+      warn = { palace: mJi.palace, text: `**${shortFor(mJi.palace, stage.key)}**要留神`, strong: false };
     }
 
-    const clash = mJi && yearJiPalace && mJi.palace === yearJiPalace;
-    lines.push(`- **${lunarMonth}**（約${iso.slice(5).replace('-', '/')}起）　重心在${shortFor(focus.name, stage.key)}　·　${parts.join('　·　')}${clash ? '　⚠️ 撞上全年最卡的地方，這個月特別小心' : ''}`);
+    const head = `- **${lunarMonth}**（約${iso.slice(5).replace('-', '/')}起）　重心在**${shortFor(focus.name, stage.key)}**`;
+    const luPart = mLu ? `，${shortFor(mLu.palace, stage.key)}的事會變多` : '';
+
+    // 同一塊在一年內反覆被點到，是真的（多半就是本命的課題所在）。
+    // 但逐字重複同一句話會讀起來像壞掉，所以第二次之後改成承認這個規律。
+    let warnPart = '';
+    if (warn) {
+      const at = warn.palace;
+      if (at && warnedPalaces.has(at)) {
+        warnPart = `\n  　${warn.strong ? '⚠️ ' : '· '}又是**${shortFor(at, stage.key)}**——這一塊今年會反覆回來`;
+      } else {
+        warnPart = `\n  　${warn.strong ? '⚠️ ' : '· '}${warn.text}`;
+        if (at) warnedPalaces.add(at);
+      }
+    }
+    lines.push(head + luPart + warnPart);
   }
   return lines;
 }
