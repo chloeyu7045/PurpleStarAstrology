@@ -3,36 +3,101 @@ import { PALACE, MUTAGEN, STAR, lifeStage, areaFor, shortFor } from './lexicon.j
 
 const MUT_ORDER = ['祿', '權', '科', '忌'];
 
-/** 找出某顆星坐落在本命的哪一宮 */
+/**
+ * 流年星曜分類。
+ * 這些 iztro 本來就算好了，是流年吉凶最具體的線索：
+ * 流祿在哪一宮，錢的活水就從那個領域來；流羊在哪，那裡就容易起衝突。
+ */
+const YEAR_STARS = {
+  流祿: { kind: 'good', what: '錢和資源的活水' },
+  流馬: { kind: 'good', what: '走動、變化的機會' },
+  流昌: { kind: 'good', what: '文書、考試、簽約、寫東西的順利' },
+  流曲: { kind: 'good', what: '表達與才藝上的表現' },
+  流魁: { kind: 'good', what: '貴人' },
+  流鉞: { kind: 'good', what: '貴人' },
+  流鸞: { kind: 'love', what: '感情或喜事' },
+  流喜: { kind: 'love', what: '感情或喜事' },
+  流羊: { kind: 'bad', what: '衝突、意外、開刀這類來得又快又急的事' },
+  流陀: { kind: 'bad', what: '拖磨、卡住、反覆處理不完的事' },
+};
+
 function palaceOfStar(palaces, starName) {
   const p = palaces.find((x) =>
     [...x.majorStars, ...x.minorStars].some((s) => s.name === starName));
   return p ? p.name : null;
 }
 
-/** 把 iztro 的無標籤 mutagen 陣列，轉成 [{類, 星, 宮}] */
 function mapMutagens(palaces, list) {
   if (!list) return [];
   return list.map((star, i) => ({
-    type: MUT_ORDER[i],
-    star,
-    palace: palaceOfStar(palaces, star),
+    type: MUT_ORDER[i], star, palace: palaceOfStar(palaces, star),
   })).filter((m) => m.palace);
 }
 
-/** 某一宮的主星底色 */
+/** 流年星曜落在本命的哪一宮 */
+function yearStarPlacements(astrolabe, horo) {
+  const out = [];
+  const grid = (horo.yearly && horo.yearly.stars) || [];
+  grid.forEach((cell, idx) => {
+    const natal = astrolabe.palaces[idx];
+    if (!natal) return;
+    (cell || []).forEach((s) => {
+      const info = YEAR_STARS[s.name];
+      if (info) out.push({ name: s.name, palace: natal.name, ...info });
+    });
+  });
+  return out;
+}
+
 function paletteOf(palaces, palaceName) {
   const p = palaces.find((x) => x.name === palaceName);
   if (!p) return null;
-  const traits = p.majorStars.map((s) => STAR[s.name]).filter(Boolean);
-  return traits.length ? traits.join('、') : null;
+  const t = p.majorStars.map((s) => STAR[s.name]).filter(Boolean);
+  return t.length ? t.join('、') : null;
 }
 
 /**
- * 產生某一年的流年解讀。
- * 所有素材都來自 iztro 實際算出來的盤，這裡只負責翻成白話、組成文章。
+ * 給這一年打個分。
+ *
+ * 注意：流年吉星本來就有八顆、煞星只有兩顆，所以「數量」永遠是正的，
+ * 拿數量打分會變成每一年都是好年，等於沒有評級。
+ * 真正的差別在「落在哪一宮」——落在命財官疾才算數，落在其他宮影響有限。
  */
-export function yearlyReading(person, year) {
+const KEY_PALACES = ['命宮', '財帛', '官祿', '疾厄'];
+const LU_PALACES = ['命宮', '財帛', '官祿', '田宅'];
+
+function yearScore(placements, yMut, dMut) {
+  let score = 0;
+  const reasons = [];
+
+  const yLu = yMut.find((m) => m.type === '祿');
+  const yJi = yMut.find((m) => m.type === '忌');
+  if (yLu && LU_PALACES.includes(yLu.palace)) { score += 2; reasons.push('好處落在要緊的地方'); }
+  if (yJi && KEY_PALACES.includes(yJi.palace)) { score -= 3; reasons.push('卡的地方剛好是要緊的地方'); }
+
+  placements.forEach((p) => {
+    if (p.name === '流祿' && KEY_PALACES.includes(p.palace)) score += 2;
+    if (p.name === '流羊' && KEY_PALACES.includes(p.palace)) score -= 2;
+    if (p.name === '流陀' && KEY_PALACES.includes(p.palace)) score -= 1;
+    if ((p.name === '流魁' || p.name === '流鉞') && KEY_PALACES.includes(p.palace)) score += 1;
+  });
+
+  // 大限和流年卡在同一宮 = 雙重疊加，這種年份特別難
+  const dJi = dMut.find((m) => m.type === '忌');
+  if (dJi && yJi && dJi.palace === yJi.palace) {
+    score -= 2;
+    reasons.push('這十年的難題和今年的難題撞在一起');
+  }
+
+  if (score >= 3) return { label: '這是一個可以往前推的年', mark: '順', reasons };
+  if (score >= 1) return { label: '這是一個小有進展、但要挑重點做的年', mark: '偏順', reasons };
+  if (score >= -1) return { label: '這是一個平穩的年，適合把基礎打好', mark: '平', reasons };
+  if (score >= -3) return { label: '這一年阻力偏多，穩住比往前衝重要', mark: '偏難', reasons };
+  return { label: '這是一個要守、不適合冒進的年', mark: '守', reasons };
+}
+
+/** 主體：某一年的流年解讀 */
+export function yearlyReading(person, year, tone = 'blunt') {
   const a = rawAstrolabe(person);
   const palaces = a.palaces;
   const age = year - person.birth_year;
@@ -42,94 +107,130 @@ export function yearlyReading(person, year) {
   const YOU = isChild ? '這孩子' : '你';
 
   const h = a.horoscope(`${year}-07-01`);
+  const yMut = mapMutagens(palaces, h.yearly.mutagen);
+  const placements = yearStarPlacements(a, h);
 
-  // 大限：這十年落在本命哪一宮
+  const yIdx = h.yearly.palaceNames.indexOf('命宮');
+  const yp = palaces[yIdx];
+
   const dp = palaces[h.decadal.index];
   const dRange = (dp && dp.decadal && dp.decadal.range) || [];
   const dMut = mapMutagens(palaces, h.decadal.mutagen);
 
-  // 流年：這一年的命宮落在本命哪一宮
-  const yIdx = h.yearly.palaceNames.indexOf('命宮');
-  const yp = palaces[yIdx];
-  const yMut = mapMutagens(palaces, h.yearly.mutagen);
+  const score = yearScore(placements, yMut, dMut);
 
   const find = (t) => yMut.find((m) => m.type === t);
-  const lu = find('祿'); const quan = find('權');
-  const ke = find('科'); const ji = find('忌');
-
+  const lu = find('祿'); const quan = find('權'); const ke = find('科'); const ji = find('忌');
   const out = [];
 
-  // ── 這十年 ──
-  if (dp) {
-    const dArea = areaFor(dp.name, stage.key);
-    const dTone = paletteOf(palaces, dp.name);
-    const dJi = dMut.find((m) => m.type === '忌');
-    const dLu = dMut.find((m) => m.type === '祿');
-    out.push(`## 這十年（${dRange.join('–')} 歲）`);
-    let s = `${YOU}這十年的重心會放在**${dArea}**上`;
-    if (dTone) s += `，整體的調性是${dTone}`;
-    s += '。';
-    if (dLu && dLu.palace) {
-      s += `這段期間，**${areaFor(dLu.palace, stage.key)}**是最容易開花結果的地方。`;
-    }
-    if (dJi && dJi.palace) {
-      s += `而**${areaFor(dJi.palace, stage.key)}**會是這十年反覆要面對的難題——它不會只出現一次，會一再回來，直到${you}處理好為止。`;
-    }
-    out.push(s);
-  }
+  // ── 定調 ──
+  out.push(`# ${year} 年 · ${age} 歲　「${score.mark}」`);
+  out.push(`**${score.label}。**${score.reasons.length ? `（${score.reasons.join('、')}）` : ''}`);
 
-  // ── 今年主軸 ──
-  out.push(`## ${year} 年主軸（${age} 歲）`);
+  // ── 今年會發生什麼（具體事件層級）──
+  out.push('## 今年會發生什麼');
   if (yp) {
-    const area = areaFor(yp.name, stage.key);
     const info = PALACE[yp.name];
-    const tone = paletteOf(palaces, yp.name);
-    let s = `今年${you}的注意力會被拉到**${area}**上——${info ? info.long : area}，這一年會特別有感。`;
-    if (tone) s += `這個領域對${you}來說本來就帶著「${tone}」的味道，今年會被放大。`;
+    let s = `今年的重心落在**${areaFor(yp.name, stage.key)}**。`;
+    if (info && info.events) s += `具體會冒出來的多半是這類事：${info.events}。`;
+    const tone2 = paletteOf(palaces, yp.name);
+    if (tone2) s += `這一塊對${you}本來就帶著「${tone2}」的性質，今年會被放大。`;
     out.push(s);
-  } else {
-    out.push('今年的重心資訊有限，以下就四個面向分別來看。');
   }
-
-  // ── 機會 ──
-  const good = [];
   if (lu) {
     const info = PALACE[lu.palace];
-    good.push(`**${areaFor(lu.palace, stage.key)}會順起來。**${info ? info.good : ''}。${MUTAGEN.祿.desc}。`);
+    out.push(`**最順的是${areaFor(lu.palace, stage.key)}。**${info && info.events ? `留意這些機會：${info.events}。` : ''}`);
   }
-  if (quan) {
-    const info = PALACE[quan.palace];
-    good.push(`**${areaFor(quan.palace, stage.key)}會拿到更多主導權。**${info ? info.good : ''}，${MUTAGEN.權.desc}。`);
-  }
-  if (ke) {
-    const info = PALACE[ke.palace];
-    good.push(`**${areaFor(ke.palace, stage.key)}會被看見。**${MUTAGEN.科.desc}。${info ? info.good : ''}。`);
-  }
-  if (good.length) {
-    out.push('## 機會在哪');
-    good.forEach((g) => out.push(`- ${g}`));
+  if (quan) out.push(`**${areaFor(quan.palace, stage.key)}**今年${you}說話會更有份量，能做的決定變多，責任也跟著變大。`);
+  if (ke) out.push(`**${areaFor(ke.palace, stage.key)}**容易遇到願意幫${you}的人，出了事也有人接。`);
+
+  // ── 流年星曜：最具體的線索 ──
+  const good = placements.filter((p) => p.kind === 'good');
+  const love = placements.filter((p) => p.kind === 'love');
+  const bad = placements.filter((p) => p.kind === 'bad');
+
+  if (good.length || love.length) {
+    out.push('## 今年的機會會從哪裡冒出來');
+    // 同一種好處（例如流魁與流鉞都是貴人）要合併，否則同一句會重複出現
+    const byWhat = new Map();
+    [...good, ...love].forEach((p) => {
+      if (!byWhat.has(p.what)) byWhat.set(p.what, new Set());
+      byWhat.get(p.what).add(areaFor(p.palace, stage.key));
+    });
+    // 條列超過四項就變雜訊，只留最集中的幾項
+    [...byWhat.entries()]
+      .sort((x, y) => y[1].size - x[1].size)
+      .slice(0, 4)
+      .forEach(([what, areas]) => {
+        out.push(`- **${what}**會從**${[...areas].join('**、**')}**來。`);
+      });
   }
 
   // ── 要當心 ──
-  if (ji) {
-    const info = PALACE[ji.palace];
-    out.push('## 要當心什麼');
-    out.push(`**今年最需要留神的是${areaFor(ji.palace, stage.key)}。**${info ? info.bad : ''}。${MUTAGEN.忌.desc}。`);
-    out.push(advice(ji.palace, isChild));
+  if (ji || bad.length) {
+    out.push('## 今年要當心什麼');
+    if (ji) {
+      const info = PALACE[ji.palace];
+      // 這裡不要帶入 events：那份清單是中性的，含好事，放在警告段落會讀起來矛盾
+      out.push(`**最需要留神的是${areaFor(ji.palace, stage.key)}。**${info ? info.bad : ''}。`);
+      out.push(advice(ji.palace, isChild));
+    }
+    bad.forEach((p) => {
+      out.push(`- **${areaFor(p.palace, stage.key)}**這一塊今年容易有${p.what}。`);
+    });
   }
 
-  // ── 一句話 ──
-  out.push('## 一句話總結');
-  out.push(summary(year, yp, lu, ji, stage, isChild));
+  // ── 逐月 ──
+  const months = monthlyLines(a, year, stage, isChild, ji ? ji.palace : null);
+  if (months.length) {
+    out.push('## 一年十二個月怎麼走');
+    months.forEach((m) => out.push(m));
+    out.push('> 越細的推算參考性越低。月份只當提醒，不要當預言。');
+  }
+
+  // ── 這十年 ──
+  if (dp) {
+    out.push(`## 順帶看這十年（${dRange.join('–')} 歲）`);
+    const dJi = dMut.find((m) => m.type === '忌');
+    const dLu = dMut.find((m) => m.type === '祿');
+    let s = `${YOU}這十年的重心在**${areaFor(dp.name, stage.key)}**。`;
+    if (dLu && dLu.palace) s += `**${shortFor(dLu.palace, stage.key)}**是最容易開花結果的地方。`;
+    if (dJi && dJi.palace) s += `而**${shortFor(dJi.palace, stage.key)}**會一再回來考${you}，直到處理好為止。`;
+    out.push(s);
+  }
 
   if (isChild) {
-    out.push(`> 這一年${YOU}還小，上面講的多半會透過家裡的氣氛、學校的狀況、或大人的情緒反映出來。父母看這段時，重點放在「今年要多留意他哪一塊」，而不是把它當成預言。`);
+    out.push(`> ${YOU}還小，上面講的多半會透過家裡的氣氛、學校的狀況、或大人的情緒反映出來。父母看的重點是「今年要多留意他哪一塊」。`);
   }
-
   return out.join('\n\n');
 }
 
-/** 針對卡關的領域，給具體可做的事 */
+/** 十二個月：每月的重心與該月最卡的地方 */
+function monthlyLines(a, year, stage, isChild, yearJiPalace) {
+  const lines = [];
+  for (let m = 1; m <= 12; m++) {
+    try {
+      const h = a.horoscope(`${year}-${String(m).padStart(2, '0')}-15`);
+      const idx = h.monthly.palaceNames.indexOf('命宮');
+      const focus = a.palaces[idx];
+      const mut = mapMutagens(a.palaces, h.monthly.mutagen);
+      const mLu = mut.find((x) => x.type === '祿');
+      const mJi = mut.find((x) => x.type === '忌');
+      if (!focus) continue;
+
+      const parts = [`**${m} 月**　重心在${shortFor(focus.name, stage.key)}`];
+      if (mLu) parts.push(`${shortFor(mLu.palace, stage.key)}順`);
+      if (mJi) parts.push(`${shortFor(mJi.palace, stage.key)}要當心`);
+      // 這個月卡的地方剛好是全年最卡的地方 → 雙重疊加，特別標出來
+      const clash = mJi && yearJiPalace && mJi.palace === yearJiPalace;
+      lines.push(`- ${parts.join('　·　')}${clash ? '　⚠️ 跟全年最卡的地方撞在一起，這個月特別小心' : ''}`);
+    } catch (e) {
+      /* 該月算不出來就跳過，不編造 */
+    }
+  }
+  return lines;
+}
+
 function advice(palaceName, isChild) {
   const map = {
     命宮: '具體做法：今年少對自己下重話。你會比平常更容易否定自己，但那多半是狀態問題，不是事實。',
@@ -149,25 +250,6 @@ function advice(palaceName, isChild) {
   return isChild ? base.replace(/你/g, '他').replace(/具體做法/, '父母可以這樣做') : base;
 }
 
-/** 一句話定調。這裡一律用短標籤，否則句子會長到讀不動。 */
-function summary(year, yp, lu, ji, stage, isChild) {
-  const who = isChild ? '這孩子' : '你';
-  const him = isChild ? '他' : '你';
-  const focus = yp ? shortFor(yp.name, stage.key) : '整體狀態';
-  const g = lu ? shortFor(lu.palace, stage.key) : null;
-  const b = ji ? shortFor(ji.palace, stage.key) : null;
-  if (g && b && g !== b) {
-    return `**${year} 年對${who}來說是「${focus}」的一年。${g}是順的，往那裡使力；${b}是卡的，往那裡放心思。**`;
-  }
-  if (g && b && g === b) {
-    return `**${year} 年對${who}來說是「${focus}」的一年，而${g}這一塊同時有順也有卡——機會和麻煩會一起來，別只看到一面。**`;
-  }
-  if (g) return `**${year} 年重心在「${focus}」，${g}會是${him}最好使的那張牌。**`;
-  if (b) return `**${year} 年重心在「${focus}」，${b}會是最耗${him}的地方。穩住它，這一年就穩了。**`;
-  return `**${year} 年的重心在「${focus}」，是相對平穩的一年，適合把基礎打好。**`;
-}
-
-/** 這個人一輩子可以看的年份範圍 */
 export function lifeSpanYears(person) {
   const start = person.birth_year;
   const years = [];
@@ -175,7 +257,6 @@ export function lifeSpanYears(person) {
   return years;
 }
 
-/** 大限分段，給 UI 當導覽用 */
 export function decades(person) {
   const a = rawAstrolabe(person);
   return a.palaces
